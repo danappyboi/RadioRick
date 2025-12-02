@@ -1,0 +1,14 @@
+radio_stations = {
+    1: {"city": "Pittsburgh", "name": "WZUM Pittsburgh Jazz", "url": "https://pubmusic.streamguys1.com/wzum-mp3"},
+    2: {"city": "Pittsburgh", "name": "WRCT (CMU)", "url": "http://stream.wrct.org:8000/wrct-hi.mp3"},
+    3: {"city": "Pittsburgh", "name": "WPTS Pitt’s Radio Station", "url": "http://audio.wpts.pitt.edu:8000/wpts_live_128s.mp3"},
+    4: {"city": "Las Vegas", "name": "KCEP Power 88", "url": "https://ice7.securenetsystems.net/KCEP.m3u"},
+    5: {"city": "Las Vegas", "name": "KWNR The bull iHeart Country Classics", "url": "https://stream.revma.ihrhls.com/zc4435.m3u"},
+    6: {"city": "Paris", "name": "Générations", "url": "https://generationfm.ice.infomaniak.ch/generationfm-high.mp3"},
+    7: {"city": "Paris", "name": "TSF Jazz", "url": "https://tsfjazz.ice.infomaniak.ch/tsfjazz-high.mp3"},
+    8: {"city": "somaFM", "name": "Folk Forward", "url": "https://ice.somafm.com/folkfwd-128-mp3"},
+    9: {"city": "somaFM", "name": "Indie Pop Rocks!", "url": "https://ice.somafm.com/indiepop-128-mp3"},
+    10: {"city": "somaFM", "name": "Underground 80s", "url": "https://ice5.somafm.com/u80s-128-mp3"},
+    11: {"city": "somaFM", "name": "Left Coast 70s", "url": "https://ice5.somafm.com/seventies-128-mp3"},
+    12: {"city": "somaFM", "name": "Illinois Street Lounge", "url": "https://ice5.somafm.com/illstreet-128-mp3"}
+}
