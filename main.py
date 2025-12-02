@@ -2,8 +2,13 @@ import subprocess
 import time
 from threading import Thread, Lock
 from radioStations import radio_stations
+import board
+from adafruit_ads1x15 import ADS1015, AnalogIn, ads1x15
 
 #TODO: add error correction in case the stream can't be accessed
+
+i2c = board.I2C()
+ads = ADS1015(i2c)
 
 VOLUME_PIN = -1     #TODO: set to correct pin
 STATION_PIN = -1    #TODO: set to correct pin
