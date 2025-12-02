@@ -1,6 +1,6 @@
 import board
 from adafruit_ads1x15 import ADS1015, AnalogIn, ads1x15
-
+from time import sleep
 
 i2c = board.I2C()
 ads = ADS1015(i2c)
@@ -15,3 +15,7 @@ def get_pot(pot_pin):
         #should never reach here
         chan = -1
     return chan.value
+
+while True:
+    print(get_pot(0))
+    sleep(.5)

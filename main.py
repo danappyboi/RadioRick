@@ -1,3 +1,13 @@
+"""
+
+
+
+
+Important Links:
+https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/python-circuitpython
+https://learn.adafruit.com/character-lcd-with-raspberry-pi-or-beaglebone-black/usage
+"""
+
 import subprocess
 import time
 from threading import Thread, Lock
@@ -16,12 +26,17 @@ STATION_PIN = -1    #TODO: set to correct pin
 player_process = None
 current_station_index = 0
 
-
 def read_pot(pot_pin):
-    """Reads the given potentiometer value and outputs it as an int"""
-    #TODO: write this function
-    #TODO: also find the range for the potentiometer
-    return None
+    #TODO: get max and min pot values
+    """Reads the given potentiometer value and outputs an int from 0 - 99"""
+    if pot_pin == 0:
+        chan = AnalogIn(ads, ads1x15.Pin.A0)
+    elif pot_pin == 1:
+        chan = AnalogIn(ads, ads1x15.Pin.A1)
+    else: 
+        #should never reach here
+        chan = -1
+    return chan.value
 
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
@@ -47,7 +62,7 @@ def volume_thread():
     last_percent = -1
     while True:
         value = read_pot(VOLUME_PIN)
-        percent = int((value/1023)*100) #TODO: find the volume conversion
+        percent = int((value/26592)*100) #TODO: find the volume conversion
         if abs(percent -  last_percent) > 2:
             subprocess.run(["amixer","-c","0","sset","PCM",f"{percent}%"])
             last_percent = percent
@@ -77,7 +92,7 @@ def station_thread():
     last_station = -1
     while True:
         value = read_pot(STATION_PIN)
-        station_num = int((value/1023)*len(radio_stations)) #TODO: find the actual station conversion
+        station_num = int((value/26592)*len(radio_stations)) #TODO: find the actual station conversion
         if station_num != last_station:
             with station_lock:
                 play_station(station_num)
