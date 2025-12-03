@@ -120,25 +120,31 @@ def play_station(station_num):
     """Changes the station to a given url"""
     global player_process
     # Terminate existing player if running
+    
     with station_lock, player_lock:
+        print(f"play station called for station {station_num}")
+        
         if player_process:
             player_process.terminate()
             player_process.wait()
             player_process = None
 
+        print("Starting new player...")
         station = radio_stations[station_num]
         url = station["url"]
+
         # Start new player
         player_process = subprocess.Popen(
-            ["mpg123", "-R"],
+            ["mpg123", "-R", "-q"],
             stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
-            bufsize=1
         )
+
         player_process.stdin.write(f"LOAD {url}\n")
         player_process.stdin.flush()
+        print(f"Player started for {station['name']}")
 
         #TODO: "hw:0,0" is gonna need to change once we add bluetooth
 
@@ -212,7 +218,7 @@ def station_thread():
 v_thread = Thread(target=volume_thread, daemon=True)
 v_thread.start()
 
-s_thread = Thread(target=station_thread, daemon=True)
+s_thread = Thread(target=NEW_station_thread, daemon=True)
 s_thread.start()
 
 # m_thread = Thread(target=metada, daemon=True)
