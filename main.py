@@ -108,8 +108,9 @@ def volume_thread():
         volumePot = chan.value
         percent = int((volumePot/POT_MAX)*100) #TODO: find the volume conversion
         if abs(percent - last_percent) > 2:
-            subprocess.run(["amixer","-c","0","sset","PCM",f"{percent}%"])
+            subprocess.run(["amixer","sset","PCM",f"{percent}%"])
             last_percent = percent
+            time.sleep(0.3)
         time.sleep(0.05)  # 20 reads/sec
 
 def play_station(station_num):
