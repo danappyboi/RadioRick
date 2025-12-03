@@ -125,7 +125,7 @@ def play_station(station_num):
         station = radio_stations[station_num]
         url = station["url"]
         # Start new player
-        player_process = subprocess.Popen(["mpg123", "-a", "hw:0,0", url]) 
+        player_process = subprocess.Popen(["mpg123", url]) 
         #TODO: "hw:0,0" is gonna need to change once we add bluetooth
 
         name = station["name"]
