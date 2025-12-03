@@ -14,6 +14,7 @@ import board
 from adafruit_ads1x15 import ADS1015, AnalogIn, ads1x15
 from RPLCD.i2c import CharLCD
 import re
+import RPi.GPIO as GPIO
 
 #TODO: add error correction in case the stream can't be accessed
 
@@ -21,12 +22,15 @@ i2c = board.I2C()
 ads = ADS1015(i2c)
 lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1, cols=20, rows=4, dotsize=8)
 
-VOLUME_PIN = 1     
-STATION_PIN = 0 
-POT_MAX = 26600     #the max read of the potentiometer
+
+BUTTON_PIN = 17
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
 
 player_process = None
 current_station_index = 0
+use_bluetooth = False
 
 lcd_lock = Lock()
 station_lock = Lock()
@@ -35,6 +39,8 @@ adc_lock = Lock()
 
 volume_chan = AnalogIn(ads, ads1x15.Pin.A1)
 station_chan = AnalogIn(ads, ads1x15.Pin.A0)
+POT_MAX = 26600     #the max read of the potentiometer
+
 
 def read_adc(channel):
     """Thread-safe ADC reading"""
@@ -95,6 +101,43 @@ def get_volume():
             return int(vol)
     return None
 
+def switch_audio_output(use_bt):
+    """Switches from bluetooth to onboard speaker"""
+    try:
+        if use_bt:
+            # Get Bluetooth sink name (adjust if your device has a different name pattern)
+            result = subprocess.run(
+                ["pactl", "list", "short", "sinks"],
+                capture_output=True, text=True
+            )
+            # Look for bluez sink
+            for line in result.stdout.splitlines():
+                if "bluez" in line.lower():
+                    sink_name = line.split()[1]
+                    subprocess.run(["pactl", "set-default-sink", sink_name])
+                    print(f"Switched to Bluetooth sink: {sink_name}")
+                    return True
+            print("No Bluetooth sink found!")
+            return False
+        else:
+            # Switch to onboard audio (usually alsa sink)
+            result = subprocess.run(
+                ["pactl", "list", "short", "sinks"],
+                capture_output=True, text=True
+            )
+            # Look for alsa sink (onboard audio)
+            for line in result.stdout.splitlines():
+                if "alsa" in line.lower() and "bluez" not in line.lower():
+                    sink_name = line.split()[1]
+                    subprocess.run(["pactl", "set-default-sink", sink_name])
+                    print(f"Switched to onboard sink: {sink_name}")
+                    return True
+            print("No onboard sink found!")
+            return False
+    except Exception as e:
+        print(f"Error switching audio: {e}")
+        return False
+
 """Threads"""
 
 def volume_thread():
@@ -140,7 +183,7 @@ def play_station(station_num):
 
     # Start new player
     player_process = subprocess.Popen(
-        ["mpg123", "-R", "-q"],
+        ["mpg123", "-R", "-q", "-o", "pulse"],
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -155,8 +198,9 @@ def play_station(station_num):
 
     name = station["name"]
     city = station["city"]
+    output = "BT" if use_bluetooth else "Speaker" #TODO: see if i can add the BT logo
 
-    send_to_display(f"{city}\r\n{name}")
+    send_to_display(f"{city} [{output}]\r\n{name}")
 
     print("play_station done")
     # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
