@@ -28,6 +28,10 @@ POT_MAX = 26600     #the max read of the potentiometer
 player_process = None
 current_station_index = 0
 
+lcd_lock = Lock()
+station_lock = Lock()
+player_lock = Lock()
+
 def get_stream_title(url):
     """
     Gets the artist and song title if it exists
@@ -77,8 +81,9 @@ def get_stream_title(url):
 
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
-    lcd.clear()
-    lcd.write_string(text)
+    with lcd_lock():
+        lcd.clear()
+        lcd.write_string(text)
 
 def get_volume():
     """Get the current volume as an int"""
@@ -102,7 +107,7 @@ def volume_thread():
     while True:
         volumePot = chan.value
         percent = int((volumePot/POT_MAX)*100) #TODO: find the volume conversion
-        if abs(percent -  last_percent) > 2:
+        if abs(percent - last_percent) > 2:
             subprocess.run(["amixer","-c","0","sset","PCM",f"{percent}%"])
             last_percent = percent
         time.sleep(0.05)  # 20 reads/sec
@@ -111,9 +116,11 @@ def play_station(station_num):
     """Changes the station to a given url"""
     global player_process
     # Terminate existing player if running
-    if player_process:
-        player_process.terminate()
-        player_process.wait()
+    with station_lock, player_lock:
+        if player_process:
+            player_process.terminate()
+            player_process.wait()
+            player_process = None
 
     station = radio_stations[station_num]
     url = station["url"]
@@ -136,14 +143,12 @@ def station_thread():
         stationPot = chan.value
         station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
         if station_num != last_station:
-            with station_lock:
                 play_station(station_num)
-            last_station = station_num
+                last_station = station_num
         time.sleep(0.05)
 
 
-# Global lock for thread safety
-station_lock = Lock()
+
 
 # Start threads
 v_thread = Thread(target=volume_thread, daemon=True)
