@@ -234,6 +234,38 @@ def station_thread():
             
         time.sleep(0.05)
 
+def button_thread():
+    """Monitors button press to toggle between Bluetooth and onboard audio"""
+    global use_bluetooth, current_station_index
+    last_button_state = GPIO.HIGH
+    
+    while True:
+        button_state = GPIO.input(BUTTON_PIN)
+        
+        # Button pressed (LOW because of pull-up resistor)
+        if button_state == GPIO.LOW and last_button_state == GPIO.HIGH:
+            time.sleep(0.05)  # Debounce
+            if GPIO.input(BUTTON_PIN) == GPIO.LOW:  # Confirm still pressed
+                # Toggle Bluetooth
+                use_bluetooth = not use_bluetooth
+                print(f"Switching to {'Bluetooth' if use_bluetooth else 'Onboard'}...")
+                
+                # Switch PipeWire sink
+                if switch_audio_output(use_bluetooth):
+                    # Update display without restarting player
+                    station = radio_stations[current_station_index]
+                    name = station["name"]
+                    city = station["city"]
+                    output = "BT" if use_bluetooth else "Onboard"
+                    send_to_display(f"{city} [{output}]\r\n{name}")
+                else:
+                    # Switch failed, revert
+                    use_bluetooth = not use_bluetooth
+                
+                time.sleep(0.3)  # Prevent multiple toggles
+        
+        last_button_state = button_state
+        time.sleep(0.05)
 
 # Start threads
 v_thread = Thread(target=volume_thread, daemon=True)
@@ -241,6 +273,9 @@ v_thread.start()
 
 s_thread = Thread(target=station_thread, daemon=True)
 s_thread.start()
+
+b_thread = Thread(target=button_thread, daemon=True)
+b_thread.start()
 
 # m_thread = Thread(target=metada, daemon=True)
 # m_thread.start()
