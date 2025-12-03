@@ -1,11 +1,9 @@
 """
-
-
-
-
 Important Links:
 https://learn.adafruit.com/adafruit-4-channel-adc-breakouts/python-circuitpython
 https://learn.adafruit.com/character-lcd-with-raspberry-pi-or-beaglebone-black/usage
+https://medium.com/@thedyslexiccoder/how-to-set-up-a-raspberry-pi-4-with-lcd-display-using-i2c-backpack-189a0760ae15
+https://rplcd.readthedocs.io/en/stable/usage.html
 """
 
 import subprocess
@@ -14,17 +12,21 @@ from threading import Thread, Lock
 from radioStations import radio_stations
 import board
 from adafruit_ads1x15 import ADS1015, AnalogIn, ads1x15
+from RPLCD.i2c import CharLCD
+
 
 #TODO: add error correction in case the stream can't be accessed
 
 i2c = board.I2C()
 ads = ADS1015(i2c)
+lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1, cols=20, rows=4, dotsize=8)
 
 VOLUME_PIN = -1     #TODO: set to correct pin
 STATION_PIN = -1    #TODO: set to correct pin
 
 player_process = None
 current_station_index = 0
+
 
 def read_pot(pot_pin):
     #TODO: get max and min pot values
@@ -40,6 +42,8 @@ def read_pot(pot_pin):
 
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
+    lcd.clear()
+    lcd.write_string(text)
     #TODO: write this function
 
 def get_volume():
