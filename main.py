@@ -148,6 +148,39 @@ def play_station(station_num):
         send_to_display(f"{city}\r\n{name}")
         # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
 
+def NEW_station_thread():
+    """Constantly checks the station knob and updates accordingly"""
+    global current_station_index
+    last_station = -1
+    current_reading = -1
+    stable_count = 0    # counter for stable readings
+    
+    while True:
+        stationPot = read_adc(station_chan)
+        station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
+        
+        # DEBUG: Print what we're seeing
+        print(f"Raw pot: {stationPot}, Station: {station_num}, Stable: {stable_count}, Last: {last_station}")
+        
+        # Check if reading is stable
+        if station_num == current_reading:
+            stable_count += 1
+        else:
+            current_reading = station_num
+            stable_count = 0
+
+        # Only switch if we have 5 stable readings AND it's different from current station
+        if stable_count >= 5 and station_num != last_station:
+            print(f"SWITCHING TO STATION {station_num}")
+            current_station_index = station_num
+            play_station(station_num)
+            last_station = station_num
+            stable_count = 0
+            
+        time.sleep(0.05)
+
+
+
 def station_thread():
     """Constantly checks the station knob and updates accordingly"""
     global current_station_index
@@ -186,16 +219,16 @@ s_thread.start()
 # m_thread.start()
 
 # Start first station
-# play_station(current_station_index)
+play_station(current_station_index)
 
 # Keep main thread alive
-# s_thread.join()
+s_thread.join()
 
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    print("\nShutting down...")
-    with player_lock:
-        if player_process:
-            player_process.terminate()
+#try:
+#    while True:
+#        time.sleep(1)
+#except KeyboardInterrupt:
+#    print("\nShutting down...")
+#    with player_lock:
+#        if player_process:
+#            player_process.terminate()
