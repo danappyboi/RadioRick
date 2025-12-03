@@ -102,15 +102,22 @@ def get_volume():
 
 def volume_thread():
     """Constantly checking the volume and updating accordingly"""
+    global player_process
     last_percent = -1
     chan = AnalogIn(ads, ads1x15.Pin.A1)
+
     while True:
         volumePot = chan.value
-        percent = int((volumePot/POT_MAX)*100) #TODO: find the volume conversion
+        percent = int((volumePot/POT_MAX)*100)
         if abs(percent - last_percent) > 2:
-            subprocess.run(["amixer","sset","PCM",f"{percent}%"])
-            last_percent = percent
-            time.sleep(0.3)
+            with player_lock:
+                if player_process and player_process.stdin:
+                    try:
+                        player_process.stdin.write(f"VOLUME {percent}\n")
+                        player_process.stdin.flush()
+                        last_percent = percent
+                    except:
+                        pass
         time.sleep(0.05)  # 20 reads/sec
 
 def play_station(station_num):
@@ -126,7 +133,17 @@ def play_station(station_num):
         station = radio_stations[station_num]
         url = station["url"]
         # Start new player
-        player_process = subprocess.Popen(["mpg123", url]) 
+        player_process = subprocess.Popen(
+            ["mpg123", "-R"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+        player_process.stdin.write(f"LOAD {url}\n")
+        player_process.stdin.flush()
+
         #TODO: "hw:0,0" is gonna need to change once we add bluetooth
 
         name = station["name"]
@@ -140,12 +157,23 @@ def station_thread():
     global current_station_index
     chan = AnalogIn(ads, ads1x15.Pin.A0)
     last_station = -1
+    stable_count = 0    #counter for stable readings
+    current_reading = -1
     while True:
         stationPot = chan.value
         station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
-        if station_num != last_station:
-                play_station(station_num)
-                last_station = station_num
+        
+        if station_num == last_station:
+            stable_count += 1
+        else:
+            current_reading = station_num
+            stable_count = 0
+
+        if stable_count >= 5 and station_num != last_station:
+            play_station(station_num)
+            last_station = station_num
+            stable_count = 0
+            
         time.sleep(0.05)
 
 
