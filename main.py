@@ -155,7 +155,7 @@ s_thread = Thread(target=station_thread)
 s_thread.start()
 
 # Start first station
-play_station(radio_stations[current_station_index])
+play_station(current_station_index)
 
 # Keep main thread alive
 s_thread.join()
