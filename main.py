@@ -31,7 +31,17 @@ current_station_index = 0
 lcd_lock = Lock()
 station_lock = Lock()
 player_lock = Lock()
+adc_lock = Lock()
 
+volume_chan = AnalogIn(ads, ads1x15.Pin.A1)
+station_chan = AnalogIn(ads, ads1x15.Pin.A0)
+
+def read_adc(channel):
+    """Thread-safe ADC reading"""
+    with adc_lock:
+        return channel.value
+
+#TODO: change to getting the meta data
 def get_stream_title(url):
     """
     Gets the artist and song title if it exists
@@ -66,19 +76,6 @@ def get_stream_title(url):
         return f"An error occurred: {e}"
 
 
-# def read_pot(pot_pin):
-#     #TODO: get max and min pot values
-#     """Reads the given potentiometer value and outputs an int (usually from 
-#     0 - POT_MAX)"""
-#     if pot_pin == 0:
-#         chan = AnalogIn(ads, ads1x15.Pin.A0)
-#     elif pot_pin == 1:
-#         chan = AnalogIn(ads, ads1x15.Pin.A1)
-#     else: 
-#         #should never reach here
-#         chan = -1
-#     return chan.value
-
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
     with lcd_lock:
@@ -104,10 +101,9 @@ def volume_thread():
     """Constantly checking the volume and updating accordingly"""
     global player_process
     last_percent = -1
-    chan = AnalogIn(ads, ads1x15.Pin.A1)
 
     while True:
-        volumePot = chan.value
+        volumePot = read_adc(volume_chan)
         percent = int((volumePot/POT_MAX)*100)
         if abs(percent - last_percent) > 2:
             with player_lock:
@@ -155,21 +151,21 @@ def play_station(station_num):
 def station_thread():
     """Constantly checks the station knob and updates accordingly"""
     global current_station_index
-    chan = AnalogIn(ads, ads1x15.Pin.A0)
+    chan = read_adc(station_chan)
     last_station = -1
     stable_count = 0    #counter for stable readings
     current_reading = -1
     while True:
-        stationPot = chan.value
+        stationPot = read_adc(station_chan)
         station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
         
         if station_num == last_station:
             stable_count += 1
         else:
-            current_reading = station_num
             stable_count = 0
 
         if stable_count >= 5 and station_num != last_station:
+            current_station_index = station_num
             play_station(station_num)
             last_station = station_num
             stable_count = 0
@@ -183,11 +179,23 @@ def station_thread():
 v_thread = Thread(target=volume_thread, daemon=True)
 v_thread.start()
 
-s_thread = Thread(target=station_thread)
+s_thread = Thread(target=station_thread, daemon=True)
 s_thread.start()
 
+# m_thread = Thread(target=metada, daemon=True)
+# m_thread.start()
+
 # Start first station
-play_station(current_station_index)
+# play_station(current_station_index)
 
 # Keep main thread alive
-s_thread.join()
+# s_thread.join()
+
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("\nShutting down...")
+    with player_lock:
+        if player_process:
+            player_process.terminate()
