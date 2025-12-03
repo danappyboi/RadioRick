@@ -81,7 +81,7 @@ def get_stream_title(url):
 
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
-    with lcd_lock():
+    with lcd_lock:
         lcd.clear()
         lcd.write_string(text)
 
@@ -122,17 +122,17 @@ def play_station(station_num):
             player_process.wait()
             player_process = None
 
-    station = radio_stations[station_num]
-    url = station["url"]
-    # Start new player
-    player_process = subprocess.Popen(["mpg123", "-a", "hw:0,0", url]) 
-    #TODO: "hw:0,0" is gonna need to change once we add bluetooth
+        station = radio_stations[station_num]
+        url = station["url"]
+        # Start new player
+        player_process = subprocess.Popen(["mpg123", "-a", "hw:0,0", url]) 
+        #TODO: "hw:0,0" is gonna need to change once we add bluetooth
 
-    name = station["name"]
-    city = station["city"]
+        name = station["name"]
+        city = station["city"]
 
-    send_to_display(f"{city}\r\n{name}")
-    # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
+        send_to_display(f"{city}\r\n{name}")
+        # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
 
 def station_thread():
     """Constantly checks the station knob and updates accordingly"""
