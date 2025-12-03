@@ -121,38 +121,40 @@ def play_station(station_num):
     global player_process
     # Terminate existing player if running
     
-    with station_lock, player_lock:
-        print(f"play station called for station {station_num}")
-        
-        if player_process:
-            player_process.terminate()
-            player_process.wait()
-            player_process = None
+    print(f"play station called for station {station_num}")
+    
+    if player_process:
+        print("Terminating old player...")
+        player_process.terminate()
+        player_process.wait()
+        player_process = None
 
-        print("Starting new player...")
-        station = radio_stations[station_num]
-        url = station["url"]
+    print("Starting new player...")
+    station = radio_stations[station_num]
+    url = station["url"]
 
-        # Start new player
-        player_process = subprocess.Popen(
-            ["mpg123", "-R", "-q"],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
+    # Start new player
+    player_process = subprocess.Popen(
+        ["mpg123", "-R", "-q"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
 
-        player_process.stdin.write(f"LOAD {url}\n")
-        player_process.stdin.flush()
-        print(f"Player started for {station['name']}")
+    player_process.stdin.write(f"LOAD {url}\n")
+    player_process.stdin.flush()
+    print(f"Player started for {station['name']}")
 
-        #TODO: "hw:0,0" is gonna need to change once we add bluetooth
+    #TODO: "hw:0,0" is gonna need to change once we add bluetooth
 
-        name = station["name"]
-        city = station["city"]
+    name = station["name"]
+    city = station["city"]
 
-        send_to_display(f"{city}\r\n{name}")
-        # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
+    send_to_display(f"{city}\r\n{name}")
+
+    print("play_station done")
+    # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
 
 def NEW_station_thread():
     """Constantly checks the station knob and updates accordingly"""
