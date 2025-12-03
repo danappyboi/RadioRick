@@ -98,8 +98,9 @@ def get_volume():
 def volume_thread():
     """Constantly checking the volume and updating accordingly"""
     last_percent = -1
+    chan = AnalogIn(ads, ads1x15.Pin.A1)
     while True:
-        volumePot = AnalogIn(ads, ads1x15.Pin.A0).value
+        volumePot = chan.value
         percent = int((volumePot/POT_MAX)*100) #TODO: find the volume conversion
         if abs(percent -  last_percent) > 2:
             subprocess.run(["amixer","-c","0","sset","PCM",f"{percent}%"])
@@ -129,9 +130,10 @@ def play_station(station_num):
 def station_thread():
     """Constantly checks the station knob and updates accordingly"""
     global current_station_index
+    chan = AnalogIn(ads, ads1x15.Pin.A0)
     last_station = -1
     while True:
-        stationPot = AnalogIn(ads, ads1x15.Pin.A1).value
+        stationPot = chan.value
         station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
         if station_num != last_station:
             with station_lock:
