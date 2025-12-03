@@ -28,10 +28,6 @@ POT_MAX = 26600     #the max read of the potentiometer
 player_process = None
 current_station_index = 0
 
-volumePot = AnalogIn(ads, ads1x15.Pin.A0).value
-stationPot = AnalogIn(ads, ads1x15.Pin.A1).value
-
-
 def get_stream_title(url):
     """
     Gets the artist and song title if it exists
@@ -103,8 +99,8 @@ def volume_thread():
     """Constantly checking the volume and updating accordingly"""
     last_percent = -1
     while True:
-        value = volumePot
-        percent = int((value/POT_MAX)*100) #TODO: find the volume conversion
+        volumePot = AnalogIn(ads, ads1x15.Pin.A0).value
+        percent = int((volumePot/POT_MAX)*100) #TODO: find the volume conversion
         if abs(percent -  last_percent) > 2:
             subprocess.run(["amixer","-c","0","sset","PCM",f"{percent}%"])
             last_percent = percent
@@ -135,8 +131,8 @@ def station_thread():
     global current_station_index
     last_station = -1
     while True:
-        value = stationPot
-        station_num = min(int((value / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
+        stationPot = AnalogIn(ads, ads1x15.Pin.A1).value
+        station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
         if station_num != last_station:
             with station_lock:
                 play_station(station_num)
