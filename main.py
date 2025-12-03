@@ -126,7 +126,12 @@ def play_station(station_num):
     if player_process:
         print("Terminating old player...")
         player_process.terminate()
-        player_process.wait()
+        try:
+            player_process.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            print("Process didn't terminate, killin it")
+            player_process.kill()
+            player_process.wait()
         player_process = None
 
     print("Starting new player...")
