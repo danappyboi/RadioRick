@@ -147,7 +147,7 @@ def volume_thread():
 
     while True:
         volumePot = read_adc(volume_chan)
-        percent = int((volumePot/POT_MAX)*100)
+        percent = 100 - int((volumePot/POT_MAX)*100) #reverse the potentiometer
         if abs(percent - last_percent) > 2:
             with player_lock:
                 if player_process and player_process.stdin:
@@ -194,8 +194,6 @@ def play_station(station_num):
     player_process.stdin.flush()
     print(f"Player started for {station['name']}")
 
-    #TODO: "hw:0,0" is gonna need to change once we add bluetooth
-
     name = station["name"]
     city = station["city"]
     output = "BT" if use_bluetooth else "Speaker" #TODO: see if i can add the BT logo
@@ -205,7 +203,7 @@ def play_station(station_num):
     print("play_station done")
     # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
 
-def NEW_station_thread():
+def station_thread():
     """Constantly checks the station knob and updates accordingly"""
     global current_station_index
     last_station = -1
@@ -237,39 +235,11 @@ def NEW_station_thread():
         time.sleep(0.05)
 
 
-
-def station_thread():
-    """Constantly checks the station knob and updates accordingly"""
-    global current_station_index
-    chan = read_adc(station_chan)
-    last_station = -1
-    stable_count = 0    #counter for stable readings
-    current_reading = -1
-    while True:
-        stationPot = read_adc(station_chan)
-        station_num = min(int((stationPot / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
-        
-        if station_num == last_station:
-            stable_count += 1
-        else:
-            stable_count = 0
-
-        if stable_count >= 5 and station_num != last_station:
-            current_station_index = station_num
-            play_station(station_num)
-            last_station = station_num
-            stable_count = 0
-            
-        time.sleep(0.05)
-
-
-
-
 # Start threads
 v_thread = Thread(target=volume_thread, daemon=True)
 v_thread.start()
 
-s_thread = Thread(target=NEW_station_thread, daemon=True)
+s_thread = Thread(target=station_thread, daemon=True)
 s_thread.start()
 
 # m_thread = Thread(target=metada, daemon=True)
@@ -280,12 +250,3 @@ play_station(current_station_index)
 
 # Keep main thread alive
 s_thread.join()
-
-#try:
-#    while True:
-#        time.sleep(1)
-#except KeyboardInterrupt:
-#    print("\nShutting down...")
-#    with player_lock:
-#        if player_process:
-#            player_process.terminate()
