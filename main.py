@@ -13,7 +13,7 @@ from radioStations import radio_stations
 import board
 from adafruit_ads1x15 import ADS1015, AnalogIn, ads1x15
 from RPLCD.i2c import CharLCD
-
+import re
 
 #TODO: add error correction in case the stream can't be accessed
 
@@ -21,30 +21,68 @@ i2c = board.I2C()
 ads = ADS1015(i2c)
 lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1, cols=20, rows=4, dotsize=8)
 
-VOLUME_PIN = -1     #TODO: set to correct pin
-STATION_PIN = -1    #TODO: set to correct pin
+VOLUME_PIN = 1     
+STATION_PIN = 0 
+POT_MAX = 26600     #the max read of the potentiometer
 
 player_process = None
 current_station_index = 0
 
+volumePot = AnalogIn(ads, ads1x15.Pin.A0)
+stationPot = AnalogIn(ads, ads1x15.Pin.A1)
 
-def read_pot(pot_pin):
-    #TODO: get max and min pot values
-    """Reads the given potentiometer value and outputs an int from 0 - 99"""
-    if pot_pin == 0:
-        chan = AnalogIn(ads, ads1x15.Pin.A0)
-    elif pot_pin == 1:
-        chan = AnalogIn(ads, ads1x15.Pin.A1)
-    else: 
-        #should never reach here
-        chan = -1
-    return chan.value
+
+def get_stream_title(url):
+    """
+    Gets the artist and song title if it exists
+    """
+    # Run mpg123 with verbose output (-v) and to standard error (2>&1)
+    # We use -q (quiet) to avoid other non-essential output and pipe stderr
+    # We also use --ICY-INTERVAL to ensure metadata is processed if available
+    # Max-time 1 second just to get metadata and stop
+    cmd = ['mpg123', '-q', '-v', '--ICY-INTERVAL', '1', '--max-time', '1', url]
+    
+    try:
+        # Use subprocess.Popen to run the command and capture stderr
+        process = subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True)
+        time.sleep(0.5) 
+        process.terminate() 
+        
+        stderr_output = process.stderr.read()
+        
+        # Search for the StreamTitle in the captured output
+        # The output format usually looks like: ICY Info: StreamTitle='Title Here';
+        match = re.search(r"ICY Info: StreamTitle='(.*?)';", stderr_output)
+        
+        if match:
+            return match.group(1)
+        else:
+            return ""
+            
+    # should actually never get to this lol
+    except FileNotFoundError:
+        return "Error: mpg123 not found. Make sure it is installed and in your PATH."
+    except Exception as e:
+        return f"An error occurred: {e}"
+
+
+# def read_pot(pot_pin):
+#     #TODO: get max and min pot values
+#     """Reads the given potentiometer value and outputs an int (usually from 
+#     0 - POT_MAX)"""
+#     if pot_pin == 0:
+#         chan = AnalogIn(ads, ads1x15.Pin.A0)
+#     elif pot_pin == 1:
+#         chan = AnalogIn(ads, ads1x15.Pin.A1)
+#     else: 
+#         #should never reach here
+#         chan = -1
+#     return chan.value
 
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
     lcd.clear()
     lcd.write_string(text)
-    #TODO: write this function
 
 def get_volume():
     """Get the current volume as an int"""
@@ -65,8 +103,8 @@ def volume_thread():
     """Constantly checking the volume and updating accordingly"""
     last_percent = -1
     while True:
-        value = read_pot(VOLUME_PIN)
-        percent = int((value/26592)*100) #TODO: find the volume conversion
+        value = volumePot.value
+        percent = int((value/POT_MAX)*100) #TODO: find the volume conversion
         if abs(percent -  last_percent) > 2:
             subprocess.run(["amixer","-c","0","sset","PCM",f"{percent}%"])
             last_percent = percent
@@ -82,25 +120,28 @@ def play_station(station_num):
 
     station = radio_stations[station_num]
     url = station["url"]
-    name = station["name"]
-    city = station["city"]
     # Start new player
     player_process = subprocess.Popen(["mpg123", "-a", "hw:0,0", url]) 
     #TODO: "hw:0,0" is gonna need to change once we add bluetooth
 
-    send_to_display(f"Currently In: {city}\nListening to: {name}")
+    name = station["name"]
+    city = station["city"]
+
+    send_to_display(f"{city}\r\n{name}")
+    # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
 
 def station_thread():
     """Constantly checks the station knob and updates accordingly"""
     global current_station_index
     last_station = -1
     while True:
-        value = read_pot(STATION_PIN)
-        station_num = int((value/26592)*len(radio_stations)) #TODO: find the actual station conversion
+        value = stationPot.value
+        station_num = min(int((value / POT_MAX) * len(radio_stations)), len(radio_stations) - 1)
         if station_num != last_station:
             with station_lock:
                 play_station(station_num)
             last_station = station_num
+        time.sleep(0.05)
 
 
 # Global lock for thread safety
@@ -118,45 +159,3 @@ play_station(radio_stations[current_station_index])
 
 # Keep main thread alive
 s_thread.join()
-
-
-
-
-
-
-
-    # # # Replace with your sink names
-    # # BT_SINK = "bluez_sink.11_22_33_44_55_66.a2dp_sink"
-    # # SPEAKER_SINK = "alsa_output.platform-googlevoicehat_soundcard.stereo-fallback"
-
-    # # Choose output mode:
-    # # "bt" = Bluetooth headphones
-    # # "speaker" = Adafruit Speaker Bonnet
-    # output_mode = "speaker"   # <-- change this anytime
-
-    # def set_output_sink(sink):
-    #     print(f"Setting audio sink to {sink}")
-    #     subprocess.run(["pactl", "set-default-sink", sink])
-
-    # def play_stream():
-    #     print("Starting MP3 stream...")
-    #     subprocess.run(["mpg123", "-o", "pulse", STREAM_URL])
-
-    # if __name__ == "__main__":
-    #     time.sleep(5)
-
-    #     if OUTPUT_MODE == "bt":
-    #         set_output_sink(BT_SINK)
-    #     elif OUTPUT_MODE == "speaker":
-    #         set_output_sink(SPEAKER_SINK)
-    #     else:
-    #         print("Invalid OUTPUT_MODE selected.")
-    #         exit(1)
-
-    #     while True:
-    #         try:
-    #             play_stream()
-    #         except Exception as e:
-    #             print("Playback error:", e)
-    #             print("Reconnecting in 3 seconds...")
-    #             time.sleep(3)
