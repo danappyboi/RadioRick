@@ -13,93 +13,43 @@ from radioStations import radio_stations
 import board
 from adafruit_ads1x15 import ADS1015, AnalogIn, ads1x15
 from RPLCD.i2c import CharLCD
-import re
 import RPi.GPIO as GPIO
 
 #TODO: add error correction in case the stream can't be accessed
 
+# Port related variables
 i2c = board.I2C()
 ads = ADS1015(i2c)
 lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1, cols=20, rows=4, dotsize=8)
-
 
 BUTTON_PIN = 17
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+volume_chan = AnalogIn(ads, ads1x15.Pin.A1)     # Channel for volume potentiometer
+station_chan = AnalogIn(ads, ads1x15.Pin.A0)    # Channel for the station potentiometer
+POT_MAX = 26600                                 # Max value of the potentiometer
 
-player_process = None
-current_station_index = 0
-use_bluetooth = False
-
+# Thread locks
 lcd_lock = Lock()
 station_lock = Lock()
 player_lock = Lock()
 adc_lock = Lock()
 
-volume_chan = AnalogIn(ads, ads1x15.Pin.A1)
-station_chan = AnalogIn(ads, ads1x15.Pin.A0)
-POT_MAX = 26600     #the max read of the potentiometer
-
+player_process = None
+current_station_index = 0
+use_bluetooth = False
 
 def read_adc(channel):
     """Thread-safe ADC reading"""
     with adc_lock:
         return channel.value
 
-#TODO: change to getting the meta data
-def get_stream_title(url):
-    """
-    Gets the artist and song title if it exists
-    """
-    # Run mpg123 with verbose output (-v) and to standard error (2>&1)
-    # We use -q (quiet) to avoid other non-essential output and pipe stderr
-    # We also use --ICY-INTERVAL to ensure metadata is processed if available
-    # Max-time 1 second just to get metadata and stop
-    cmd = ['mpg123', '-q', '-v', '--ICY-INTERVAL', '1', '--max-time', '1', url]
-    
-    try:
-        # Use subprocess.Popen to run the command and capture stderr
-        process = subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True)
-        time.sleep(0.5) 
-        process.terminate() 
-        
-        stderr_output = process.stderr.read()
-        
-        # Search for the StreamTitle in the captured output
-        # The output format usually looks like: ICY Info: StreamTitle='Title Here';
-        match = re.search(r"ICY Info: StreamTitle='(.*?)';", stderr_output)
-        
-        if match:
-            return match.group(1)
-        else:
-            return ""
-            
-    # should actually never get to this lol
-    except FileNotFoundError:
-        return "Error: mpg123 not found. Make sure it is installed and in your PATH."
-    except Exception as e:
-        return f"An error occurred: {e}"
-
-
 def send_to_display(text):
     """Displays the given text on the LCD Display"""
     with lcd_lock:
         lcd.clear()
         lcd.write_string(text)
-
-def get_volume():
-    """Get the current volume as an int"""
-    result = subprocess.run(
-        ["amixer", "-c", "0", "sget", "PCM"],
-        capture_output=True, text=True
-    )
-    # Parse output for volume
-    for line in result.stdout.splitlines():
-        if "Front Left:" in line:
-            vol = line.split("[")[1].split("%")[0]
-            return int(vol)
-    return None
 
 def switch_audio_output(use_bt):
     """Switches from bluetooth to onboard speaker"""
@@ -139,7 +89,6 @@ def switch_audio_output(use_bt):
         return False
 
 """Threads"""
-
 def volume_thread():
     """Constantly checking the volume and updating accordingly"""
     global player_process
@@ -160,12 +109,11 @@ def volume_thread():
         time.sleep(0.05)  # 20 reads/sec
 
 def play_station(station_num):
-    """Changes the station to a given url"""
+    """Changes the station to a given station number"""
     global player_process
-    # Terminate existing player if running
-    
     print(f"play station called for station {station_num}")
     
+    # if theres already a player in process, kill it
     if player_process:
         print("Terminating old player...")
         player_process.terminate()
@@ -196,12 +144,11 @@ def play_station(station_num):
 
     name = station["name"]
     city = station["city"]
-    output = "BT" if use_bluetooth else "Speaker" #TODO: see if i can add the BT logo
+    output = "BT" if use_bluetooth else "Speaker"
 
-    send_to_display(f"{city} [{output}]\r\n{name}")
+    send_to_display(f"{city} [{output}]\r\n{name}") #TODO: add song title!!!
 
     print("play_station done")
-    # send_to_display(f"{city}\r\n{name}\r\n{get_stream_title}")
 
 def station_thread():
     """Constantly checks the station knob and updates accordingly"""
